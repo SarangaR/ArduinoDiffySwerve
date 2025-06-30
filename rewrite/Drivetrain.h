@@ -17,7 +17,7 @@ struct OdomPose {
     float x;
     float y;
     float h;
-}
+};
 
 class PathFollower; // Forward declaration
 

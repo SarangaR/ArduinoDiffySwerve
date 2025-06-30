@@ -40,6 +40,7 @@ private:
     float targetAngle;
 
     float gearRatioSpin = 0.5 * 3.0;
+    float wheelRadius = 2.2225f/100.0f;
 
     // Steering PID
     float steerKp = 2.5;

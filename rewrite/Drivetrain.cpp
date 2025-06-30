@@ -33,7 +33,7 @@ float Drivetrain::getCurrentHeading() {
     return 0.0;
 }
 
-float Drivetrain::getOdomPose() {
+OdomPose Drivetrain::getOdomPose() {
     return this->currPose;
 }
 
@@ -63,6 +63,7 @@ void Drivetrain::drive(float vx, float vy, float omega, bool fieldOriented, bool
         }
         else {
             if (fabs(vx) > 0 || fabs(vy) > 0) {
+                float yaw = getCurrentHeading();
                 float yawCorrection = calcYawStraight(storedYaw, yaw, 0.004);
                 omega += yawCorrection;
             }

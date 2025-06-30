@@ -190,8 +190,8 @@ String Module::getTuningStatus() {
 }
 
 float Module::getDriveVelocity() { 
-    float topMotorSpeed = top->getVelocity();
-    float bottomMotorSpeed = bottom->getVelocity();
+    float topMotorSpeed = topMotor->getVelocity();
+    float bottomMotorSpeed = bottomMotor->getVelocity();
 
     float topSpeed = topMotorSpeed * gearRatioSpin;
     float bottomSpeed = bottomMotorSpeed * gearRatioSpin;

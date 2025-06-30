@@ -465,6 +465,9 @@ void checkStateTransitions() {
         }
         Serial.println("Robot Disabled");
     }
+    else if (PestoLink.buttonHeld(0)) { //TODO: replace with gyro reset button
+        otos.resetTracking();
+    }
 }
 
 // ========== STATUS AND DEBUGGING ==========
