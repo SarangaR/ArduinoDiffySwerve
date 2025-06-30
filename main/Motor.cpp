@@ -5,8 +5,9 @@ Motor::Motor(int enc1, int enc2, NoU_Motor* rawMotor, Encoder* sensor) :
 {}
 
 void Motor::begin() {
-    rawMotor->setDeadband(0.1);
-    rawMotor->setExponent(1);
+    rawMotor->setMinimumOutput(0.2);
+    rawMotor->setMaximumOutput(1.0);
+    rawMotor->setBrakeMode(false);
     sensor->quadrature = Quadrature::OFF;
     lastUpdate = millis();
 }
@@ -24,8 +25,12 @@ void Motor::setVelocity(Angle velocity) {
         dir = -1;
     }
     float setpoint = dir * velocity.getRadians();
-
-    rawMotor->set(setpoint/MAX_SPEED.getRadians());
+    
+    // float error = setpoint - getVelocity().getRadians();
+    // float accel = pid(error);
+    // float output = getVelocity().getRadians() + accel + Kff*setpoint;
+    float out = setpoint / MAX_SPEED.getRadians();
+    rawMotor->set(out);
 }
 
 void Motor::setInverted(bool isInverted) {

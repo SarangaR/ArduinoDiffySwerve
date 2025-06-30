@@ -39,7 +39,7 @@ class Drivetrain {
           {0, 0.5*sideLength, 0}
         };
 
-        std::vector<float> moveToPoint(Point point, float targetRotation, sfe_otos_pose2d_t &currentPose);
+        std::vector<float> moveToPoint(Point point, float targetRotation, sfe_otos_pose2d_t &currentPose, float maxSpeed);
         void setDistanceStart(sfe_otos_pose2d_t &currentPose);
 
         void spinShooter();

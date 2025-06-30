@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <Drivetrain.h>
 
 Drivetrain::Drivetrain(Module* left, Module* right, Module* center, NoU_Motor* shooter, NoU_Motor* intake, NoU_Servo* arm) :
@@ -108,14 +109,18 @@ std::array<moduleState, 3> Drivetrain::drive(float vx, float vy, float omega, An
     //     correctionTargetHeading = getGyroAngle(); // Update target heading when manually rotating
     // }
 
+    vx = constrain(vx, -0.9, 0.9);
+    vy = constrain(vy, -0.9, 0.9);
+    omega = constrain(omega, -0.75, 0.75);
+
     std::array<moduleState, 3> states = toSwerveModuleStates(vx, vy, omega, gyroAngle, fieldOriented);
 
     lastModuleStates = {states[0].toString(), states[1].toString(), states[2].toString()};
 
     left->setDesiredState(states[0]);
-    right->setDesiredState(states[1]);
+    right->setDesiredState(states[1]); 
     center->setDesiredState(states[2]);
-
+    
     return states;
 }
 
@@ -128,7 +133,7 @@ std::array<moduleState, 3> Drivetrain::normalizeSpeeds(std::array<moduleState, 3
     float max = *std::max_element(speeds.begin(), speeds.end());
     if (max > Module::MAX_SPEED_SPIN_MS) {
         for (int i = 0; i < speeds.size(); i++) {
-            speeds[i] /= max;
+            speeds[i] /= 0.9 * Module::MAX_SPEED_SPIN_MS / max;
         }
     }
 
@@ -159,7 +164,7 @@ void Drivetrain::stop() {
     center->stop();
 }
 
-std::vector<float> Drivetrain::moveToPoint(Point point, float targetRotation, sfe_otos_pose2d_t &currentPose) {
+std::vector<float> Drivetrain::moveToPoint(Point point, float targetRotation, sfe_otos_pose2d_t &currentPose, float maxSpeed) {
     float xError = point.x - currentPose.x;
     float yError = point.y - currentPose.y;
     float hError = -targetRotation - currentPose.h;
@@ -173,6 +178,9 @@ std::vector<float> Drivetrain::moveToPoint(Point point, float targetRotation, sf
 
     float vx = xOutput;
     float vy = yOutput;
+
+    if (vx > maxSpeed) vx = maxSpeed;
+    if (vy > maxSpeed) vy = maxSpeed;
 
     drive(-vy, vx, 0, Angle(currentPose.h, DEGREES), true);
 

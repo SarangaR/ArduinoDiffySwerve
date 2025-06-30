@@ -9,8 +9,16 @@ struct Point {
     float y;
 };
 
+struct Pose2d {
+    float x;
+    float y;
+    float h;
+};
+
 class PathPlanner {
     public:
-        static std::vector<Point> generateSpline(std::vector<Point>& controlPoints, float tension = 0.5, int segments = 10);
+        static std::vector<Point> generateSpline(std::vector<Point>* controlPoints);
+        static float catmullRom(float t, float p0, float p1, float p2, float p3);
+
 };
 #endif // PATHPLANNER_H

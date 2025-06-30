@@ -71,7 +71,8 @@ class Module {
         void stop();
         void begin();
         Angle getModuleOrientation();
-        float getModuleSpeed();
+        float getModuleSpeed();        
+        float getModuleSpeedRadians();
         std::vector<float> rotateModule(float angle);
         float getMotorSpeedsForAngle(float angleDegrees);
         float getMotorSpeedsForSpeed(float speed);
@@ -89,15 +90,15 @@ class Module {
 
         moduleID id;
 
-        static constexpr float MAX_SPEED_SPIN_MS = 10.0f*M_PI * 1.2 * 2.5/100.0;
+        static constexpr float MAX_SPEED_SPIN_MS = 20.943951 * 2.2225/100.0;
     private:
         Motor* top;
         Motor* bottom;
 
         float prevErrorAngle = 0;
 
-        float wheelRadius = 2.5f/100.0f;
-        float gearRatioMotorToSun = 12.0f/30.0f;
+        float wheelRadius = 2.2225f/100.0f;
+        float gearRatioMotorToSun = 25.0f/50.0f;
         float gearRatioSunToWheelTurn = 1.0f/0.5f;
         float gearRatioTurn = gearRatioMotorToSun;
         float gearRatioSunToWheelSpin = 30.0f/10.0f;
@@ -109,7 +110,7 @@ class Module {
 
         bool alreadyDone = false;
 
-        PIDController pid = PIDController(5.0f, 0.0f, 0.1f , 0.0f, top->MAX_SPEED.getRadians());
+        PIDController pid = PIDController(2.0f, 0.0f, 20.0f, 0.0f, top->MAX_SPEED.getRadians());
         PIDController speedPID = PIDController(1.0f, 0.0f, 0.0f, 0.0f, top->MAX_SPEED.getRadians());
 };
 

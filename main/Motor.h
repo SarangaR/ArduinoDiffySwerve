@@ -6,8 +6,6 @@
 #include <chrono>
 #include <Alfredo_NoU3.h>
 #include <SimpleFOC.h>
-#include <SimpleDCMotor.h>
-#include <SimpleFOCDrivers.h>
 
 enum AngleUnit {
     RADIANS,
@@ -155,7 +153,10 @@ class Motor {
         NoU_Motor* rawMotor;
         Encoder* sensor;
 
-        Angle MAX_SPEED = Angle(10*M_PI);
+        Angle MAX_SPEED = Angle(20.943951);
+
+        PIDController pid = PIDController(1.0f, 0.1f, 0.0f , 0.0f, MAX_SPEED.getRadians());
+        float Kff = 0.5;
 
         long lastUpdate = 0;
     private:

@@ -1,55 +1,35 @@
-#include <PathPlanner.h>
+// #include <PathPlanner.h>
 
-std::vector<Point> PathPlanner::generateSpline(std::vector<Point>& controlPoints, float tension, int segments) {
-    std::vector<Point> path;
+// std::vector<Point> PathPlanner::generateSpline(std::vector<Point>* controlPoints) {
+//     float step = 0.05;
+//     int numValues = controlPoints->size();
+//     std::vector<Point> splinePoints = {};
 
-    // Ensure there are enough points to create splines
-    if (controlPoints.size() < 2) {
-        return controlPoints; // Not enough points
-    }
+//     for (int i = 1; i < numValues - 2; i++) {
+//         Point p0 = controlPoints->at(i-1);
+//         Point p1 = controlPoints->at(i);
+//         Point p2 = controlPoints->at(i+1);
+//         Point p3 = controlPoints->at(i+2);
 
-    // Include the first and last points in the output explicitly
-    path.push_back(controlPoints[0]);
+//         for (float t = 0; t <= 1.0; t += step) {
+//             if (splinePoints.size() < 200) {
+//                 float x = catmullRom(t, p0.x, p1.x, p2.x, p3.x);
+//                 float y = catmullRom(t, p0.y, p1.y, p2.y, p3.y);
+//                 splinePoints.push_back({x, y}); 
+//             }
+//         }
+//     }
 
-    // Add duplicate points at the start and end for padding
-    std::vector<Point> extendedPoints = controlPoints;
-    extendedPoints.insert(extendedPoints.begin(), controlPoints[0]);
-    extendedPoints.push_back(controlPoints.back());
+//     return splinePoints;
+// }
 
-    // Iterate through the control points to calculate spline
-    for (size_t i = 1; i < extendedPoints.size() - 2; ++i) {
-        Point p0 = extendedPoints[i - 1];
-        Point p1 = extendedPoints[i];
-        Point p2 = extendedPoints[i + 1];
-        Point p3 = extendedPoints[i + 2];
-
-        // Calculate spline points for this segment
-        for (int j = 1; j <= segments; ++j) { // Start from 1 to avoid duplicating p1
-            float t = j / static_cast<float>(segments); // Parameter t between 0 and 1
-
-            float t2 = t * t;
-            float t3 = t2 * t;
-
-            // Catmull-Rom blending functions
-            float b0 = -tension * t3 + 2 * tension * t2 - tension * t;
-            float b1 = (2 - tension) * t3 + (tension - 3) * t2 + 1;
-            float b2 = (tension - 2) * t3 + (3 - 2 * tension) * t2 + tension * t;
-            float b3 = tension * t3 - tension * t2;
-
-            // Calculate the interpolated point
-            Point interpolated;
-            interpolated.x = b0 * p0.x + b1 * p1.x + b2 * p2.x + b3 * p3.x;
-            interpolated.y = b0 * p0.y + b1 * p1.y + b2 * p2.y + b3 * p3.y;
-
-            path.push_back(interpolated);
-        }
-    }
-
-    for (size_t i = 0; i < path.size(); i++) {
-        auto temp = path[i].x;
-        path[i].x = path[i].y;
-        path[i].y = temp;
-    }
-
-    return path;
-}
+// float PathPlanner::catmullRom(float t, float p0, float p1, float p2, float p3) {
+//     float t2 = t * t;
+//     float t3 = t2 * t;
+//     return 0.5 * (
+//         (2 * p1) +
+//         (-p0 + p2) * t +
+//         (2*p0 - 5*p1 + 4*p2 - p3) * t2 +
+//         (-p0 + 3*p1 - 3*p2 + p3) * t3
+//   );
+// }
