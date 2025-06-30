@@ -8,10 +8,16 @@
 #define NUM_MODULES 3
 
 struct ChassisSpeeds {
-    float vx;
-    float vy;
-    float omega;
+    float fwd;
+    float str;
+    float rot;
 };
+
+struct OdomPose {
+    float x;
+    float y;
+    float h;
+}
 
 class PathFollower; // Forward declaration
 
@@ -22,6 +28,9 @@ private:
     Module* modules[NUM_MODULES];
     QwiicOTOS* otos;
     PathFollower* pathFollower;
+    OdomPose currPose;
+    unsigned long lastOdomTime = 0;
+    float storedYaw = 0;
 
     //distance from wheel to wheel (trackwidth)
     float sideLength = 17.15008f/100.0f; //m
@@ -49,11 +58,13 @@ public:
     void setOTOS(QwiicOTOS* otosPtr) { otos = otosPtr; }
     void setPathFollower(PathFollower* pf) { pathFollower = pf; }
     
-    void drive(float vx, float vy, float omega, bool fieldOriented = true);
-    ChassisSpeeds forwardKinematics(float driveRPMS[3], float anglesRad[3], float modulePositions[3][2], float wheelRadius);
+    void drive(float vx, float vy, float omega, bool fieldOriented = true, bool headingCorrection = true);
+    ChassisSpeeds forwardKinematics(float driveRPMs[3], float anglesRad[3], float modulePositions[3][2], float wheelRadius);
+    float calcYawStraight(float target, float current, float kp);
 
     void stop();
     void update();
+    void updateOdom();
     
     void startAutoTune(bool tuneDrive);
     bool isTuning();
@@ -63,6 +74,7 @@ public:
     // Getters for sensor access
     QwiicOTOS* getOTOS() { return otos; }
     float getCurrentHeading();
+    OdomPose getOdomPose();
 };
 
 #endif

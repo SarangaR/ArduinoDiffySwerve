@@ -54,10 +54,6 @@ void Module::setDesiredState(float velocityRPM, float targetAngleRad) {
     bottomMotor->setVelocity(bottom1Rad);
 }
 
-
-
-
-
 void Module::update() {
     topMotor->update();
     bottomMotor->update();
@@ -193,7 +189,20 @@ String Module::getTuningStatus() {
     }
 }
 
-float Module::getDriveVelocity() { return driveVelocity; }
+float Module::getDriveVelocity() { 
+    float topMotorSpeed = top->getVelocity();
+    float bottomMotorSpeed = bottom->getVelocity();
+
+    float topSpeed = topMotorSpeed * gearRatioSpin;
+    float bottomSpeed = bottomMotorSpeed * gearRatioSpin;
+
+    float speed = ((topSpeed + bottomSpeed) / 2);
+
+    //convert from rad/s to m/s
+    float speedMetersPerSecond = speed * wheelRadius;
+
+    return speedMetersPerSecond;
+}
 float Module::getTopMotorVelocity() { return topMotor->getVelocity(); }
 float Module::getBottomMotorVelocity() { return bottomMotor->getVelocity(); }
 float Module::getTurnVelocity() { return 0.0; }

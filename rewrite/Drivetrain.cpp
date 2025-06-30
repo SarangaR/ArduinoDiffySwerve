@@ -8,6 +8,9 @@ Drivetrain::Drivetrain(Module* mod1, Module* mod2, Module* mod3) {
     modules[2] = mod3;
     otos = nullptr;
     pathFollower = nullptr;
+    lastOdomTime = millis();
+    currPose = {0, 0, 0};
+    storedYaw = getCurrentHeading();
 }
 
 void Drivetrain::init() {
@@ -30,7 +33,20 @@ float Drivetrain::getCurrentHeading() {
     return 0.0;
 }
 
-void Drivetrain::drive(float vx, float vy, float omega, bool fieldOriented) {
+float Drivetrain::getOdomPose() {
+    return this->currPose;
+}
+
+float Drivetrain::calcYawStraight(float target, float current, float kp) {
+    float targetDeg = target * RAD_TO_DEG;
+    float currentDeg = current * RAD_TO_DEG;
+    
+    float errorAngle = remainderf((targetDeg - currentDeg), 360.0);
+    float correction = errorAngle * kp;
+    return correction * DEG_TO_RAD;
+}
+
+void Drivetrain::drive(float vx, float vy, float omega, bool fieldOriented, bool headingCorrection) {
     if (fieldOriented) {
         float heading = getCurrentHeading();
 
@@ -39,6 +55,18 @@ void Drivetrain::drive(float vx, float vy, float omega, bool fieldOriented) {
 
         vx = robot_vx;
         vy = robot_vy;
+    }
+
+    if (headingCorrection) {
+        if (fabs(omega) < 1.0) {
+            storedYaw = getCurrentHeading();
+        }
+        else {
+            if (fabs(vx) > 0 || fabs(vy) > 0) {
+                float yawCorrection = calcYawStraight(storedYaw, yaw, 0.004);
+                omega += yawCorrection;
+            }
+        }
     }
 
     for (int i = 0; i < NUM_MODULES; i++) {
@@ -72,7 +100,10 @@ void Drivetrain::drive(float vx, float vy, float omega, bool fieldOriented) {
     }
 }
 
-ChassisSpeeds Drivetrain::forwardKinematics(float driveRPMS[3], float anglesRad[3], float modulePositions[3][2], float wheelRadius) {
+ChassisSpeeds Drivetrain::forwardKinematics(float driveRPMs[3], float anglesRad[3], float modulePositions[3][2], float wheelRadius) {
+    float vx = 0.0;
+    float vy = 0.0;
+    float omega = 0.0;
     float A[6][3]; // 2 rows per module: [vx, vy, omega]
     float b[6];
 
@@ -122,7 +153,8 @@ ChassisSpeeds Drivetrain::forwardKinematics(float driveRPMS[3], float anglesRad[
 
     if (fabs(det) < 1e-6) {
         vx = vy = omega = 0.0f;
-        return;
+        ChassisSpeeds output = {vx, vy, omega};
+        return output;
     }
 
     float invDet = 1.0f / det;
@@ -147,6 +179,17 @@ ChassisSpeeds Drivetrain::forwardKinematics(float driveRPMS[3], float anglesRad[
         vy += invAtA[1][i] * Atb[i];
         omega += invAtA[2][i] * Atb[i];
     }
+
+    float heading = getCurrentHeading();
+
+    float robot_vx = vx * cosf(heading) - vy * sinf(heading);
+    float robot_vy = vx * sinf(heading) + vy * cosf(heading);
+
+    vx = robot_vx;
+    vy = robot_vy;
+
+    ChassisSpeeds output = {vx, vy, omega};
+    return output;
 }
 
 float Drivetrain::placeAngleInScope(float scopeReference, float newAngle) {
@@ -183,9 +226,19 @@ void Drivetrain::stop() {
 }
 
 void Drivetrain::update() {
+    float rpms[3] = {0.0, 0.0, 0.0};
+    float angles[3] = {0.0, 0.0, 0.0};
     for (int i = 0; i < NUM_MODULES; i++) {
         modules[i]->update();
+        rpms[i] = modules[i]->getDriveVelocity();
+        angles[i] = modules[i]->getCurrentAngle();
     }
+
+    ChassisSpeeds speeds = forwardKinematics(rpms, angles, modulePositions, wheelRadius);
+    unsigned long timeStep = millis() - lastOdomTime;
+    currPose.x = currPose.x + speeds.fwd * timeStep;
+    currPose.y = currPose.y + speeds.str * timeStep;
+    currPose.h = getCurrentHeading();
 }
 
 void Drivetrain::startAutoTune(bool tuneDrive) {
