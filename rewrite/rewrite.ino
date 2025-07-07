@@ -21,6 +21,21 @@ Motor* rightBottom;
 Motor* leftTop;
 Motor* leftBottom;
 
+// NOTE: Set these numbers to OPPOSITE of the displayed value (- is +, + is -)
+float centerOffset = 0.0;
+float leftOffset = 0.0;
+float rightOffset = 0.0;
+
+// NoU_Servo arm;
+NoU_Motor intake(8);
+
+// enum ScoringState {
+//     STOW,
+//     L3,
+//     L2,
+//     L1
+// };
+
 // Modules
 Module* center;
 Module* right;
@@ -69,16 +84,30 @@ Waypoint squarePath[] = {
 
 // Figure-8 path
 Waypoint figure8Path[] = {
-    {0.5, 0.0},   // Forward
-    {1.0, 0.5},   // Up and right
-    {1.5, 0.0},   // Center top
-    {2.0, -0.5},  // Down and right
-    {1.5, -1.0},  // Bottom right
-    {1.0, -0.5},  // Up toward center
-    {0.5, -1.0},  // Down and left
-    {0.0, -0.5},  // Up and left
-    {0.5, 0.0},   // Back to center
-    {0.0, 0.0}    // Return to start
+	{0.0, 0.0, 60.0},
+	{-0.048, 0.018, 60.0},
+	{-0.096, 0.036, 60.0},
+	{-0.144, 0.053, 60.0},
+	{-0.192, 0.07, 60.0},
+	{-0.241, 0.087, 60.0},
+	{-0.289, 0.103, 60.0},
+	{-0.338, 0.119, 60.0},
+	{-0.387, 0.134, 60.0},
+	{-0.436, 0.149, 60.0},
+	{-0.484, 0.163, 60.0},
+	{-0.533, 0.176, 60.0},
+	{-0.582, 0.189, 60.0},
+	{-0.638, 0.203, 60.0},
+	{-0.687, 0.215, 60.0},
+	{-0.729, 0.225, 60.0},
+	{-0.776, 0.236, 60.0},
+	{-0.821, 0.248, 60.0},
+	{-0.837, 0.253, 60.0},
+	{-0.85, 0.259, 60.0},
+	{-0.859, 0.265, 60.0},
+	{-0.868, 0.278, 60.0},
+	{-0.867, 0.295, 60.0},
+	{-0.858, 0.314, 60.0}
 };
 
 // Simple forward and back path
@@ -86,6 +115,7 @@ Waypoint simplePath[] = {
     {0.5, 0.0},   // Move forward 1m
     {0.0, 0.0}    // Return to start
 };
+
 
 // ========== ENCODER INTERRUPT HANDLERS ==========
 void encoderCenterTopA()  { centerTop->doA(); }
@@ -183,9 +213,9 @@ void setup() {
     
     // Create module objects
     //offsets are negative of actual value
-    center = new Module(centerTop, centerBottom, centerAzimuth, (34.44) * DEG_TO_RAD);
-    right = new Module(rightTop, rightBottom, rightAzimuth, (-126.69) * DEG_TO_RAD);
-    left = new Module(leftTop, leftBottom, leftAzimuth, (-125.62) * DEG_TO_RAD);
+    center = new Module(centerTop, centerBottom, centerAzimuth, (centerOffset) * DEG_TO_RAD);
+    right = new Module(rightTop, rightBottom, rightAzimuth, (rightOffset) * DEG_TO_RAD);
+    left = new Module(leftTop, leftBottom, leftAzimuth, (leftOffset) * DEG_TO_RAD);
     
     // Create drivetrain
     drivetrain = new Drivetrain(center, right, left);
@@ -236,7 +266,11 @@ void setup() {
     
     currentState = TELEOP;
     stateStartTime = millis();
+
+    PestoLink.setTerminalPeriod(10);
 }
+
+int auto_count = 0;
 
 // ========== MAIN LOOP ==========
 void loop() {
@@ -263,19 +297,17 @@ void loop() {
                 break;
                 
             case AUTONOMOUS:
-                if (pathFollowingActive) {
-                    // Path following is handled in pathFollower->update() above
-                    // Just monitor for completion or manual stop
-                } else {
-                    runBasicAutonomous();
-                }
+                runBasicAutonomous();
+
                 break;
                 
             case TELEOP:
+                auto_count = 0;
                 runTeleop();
                 break;
                 
             case ROBOT_DISABLED:
+                auto_count = 0;
                 drivetrain->stop();
                 if (pathFollowingActive) {
                     pathFollower->stopPath();
@@ -295,16 +327,23 @@ void loop() {
         //     lastTelemetryTime = currentTime;
         // }
         PestoLink.printBatteryVoltage(NoU3.getBatteryVoltage());
+        // ChassisSpeeds speeds = drivetrain->getCurrentSpeeds();
+        // sfe_otos_pose2d_t pos;
+        // drivetrain->getOTOS()->getPosition(pos);
+        // String vels = String(pos.x) + String(" ") + String(pos.y) + String(" ") + String(pos.h);
+        // PestoLink.printTerminal(vels.c_str());
+        // OdomPose pos = drivetrain->getOdomPose();
+        // PestoLink.printTerminal(position.c_str());
     }
-
+ 
     // right->setDesiredState(200.0, 90.0 * DEG_TO_RAD);
     // center->setDesiredState(200.0, 90.0 * DEG_TO_RAD);
     // left->setDesiredState(200.0, 90.0 * DEG_TO_RAD);
     // leftTop->setVelocity(80.0);
     // leftBottom->setVelocity(80.0);
-    // Serial.print(center->getCurrentAngle() * RAD_TO_DEG); Serial.print(" ");
-    // Serial.print(right->getCurrentAngle() * RAD_TO_DEG); Serial.print(" ");
-    // Serial.println(left->getCurrentAngle() * RAD_TO_DEG);
+    Serial.print(center->getCurrentAngle() * RAD_TO_DEG); Serial.print(" ");
+    Serial.print(right->getCurrentAngle() * RAD_TO_DEG); Serial.print(" ");
+    Serial.println(left->getCurrentAngle() * RAD_TO_DEG);
     // center->update();
     // right->update();
     // left->update();
@@ -314,42 +353,29 @@ void loop() {
 
 // ========== BASIC AUTONOMOUS MODE (Non-Path Following) ==========
 void runBasicAutonomous() {
-    unsigned long currentTime = millis();
-    unsigned long stepTime = currentTime - autoStepStartTime;
-    
-    // Simple autonomous sequence without path following
-    switch (autoStep) {
-        case 0: // Drive forward
-            drivetrain->drive(0.5, 0, 0, false); // 0.5 m/s forward, robot-oriented
-            if (stepTime > 2000) { // 2 seconds
-                autoStep++;
-                autoStepStartTime = currentTime;
-            }
-            break;
-            
-        case 1: // Turn right
-            drivetrain->drive(0, 0, 1.0, false); // 1 rad/s clockwise
-            if (stepTime > 1570) { // ~90 degree turn (π/2 / 1.0 * 1000)
-                autoStep++;
-                autoStepStartTime = currentTime;
-            }
-            break;
-            
-        case 2: // Drive forward again
-            drivetrain->drive(0.5, 0, 0, false);
-            if (stepTime > 2000) {
-                autoStep++;
-                autoStepStartTime = currentTime;
-            }
-            break;
-            
-        case 3: // Stop
-            drivetrain->stop();
-            if (stepTime > 1000) {
-                currentState = ROBOT_DISABLED;
-                Serial.println("Basic autonomous complete!");
-            }
-            break;
+    Waypoint targetPt = simplePath[auto_count];
+    sfe_otos_pose2d_t currPose;
+    drivetrain->getOTOS()->getPosition(currPose);
+
+    float x_err = targetPt.x - currPose.x;
+    float y_err = targetPt.y - currPose.y;
+    float h_err = targetPt.heading * DEG_TO_RAD - currPose.h;
+
+    float x_kp = 50.0;
+    float y_kp = 50.0;
+    float h_kp = 1.0;
+
+    float x = x_kp * x_err;
+    float y = y_kp * y_err;
+    float w = h_kp * h_err;
+
+    String print = String("output: ") + String(x_err) + " " + String(y_err) + " " + String(h_err);
+    PestoLink.printTerminal(print.c_str());
+
+    drivetrain->drive(y * MAX_LIN_VEL, x * MAX_LIN_VEL, 0.0, true, false);
+
+    if (fabs(x_err) < 0.05 && fabs(y_err) < 0.05) {
+        auto_count++;
     }
 }
 
@@ -376,6 +402,16 @@ void runTeleop() {
     }
     else {
         drivetrain->drive(vxf, vyf, omega, true);
+    }
+
+    if (PestoLink.buttonHeld(6)) {
+        intake.set(-1);
+    }
+    else if (PestoLink.buttonHeld(7)) {
+        intake.set(1);
+    }
+    else {
+        intake.set(0);
     }
 }
 
@@ -437,7 +473,7 @@ void checkStateTransitions() {
         drivetrain->startAutoTune(false);
         
     } else if (PestoLink.keyHeld(Key::Digit6)) {
-        pathFollower->resetPose(0.0, 0.0, 0.0);
+        pathFollower->resetPose(0.0, 0.0, 0.0); 
         Serial.println("Robot pose reset to origin");
         
     } else if (PestoLink.keyHeld(Key::Digit7)) {
@@ -464,6 +500,9 @@ void checkStateTransitions() {
             pathFollowingActive = false;
         }
         Serial.println("Robot Disabled");
+    }
+    else if (PestoLink.buttonHeld(8)) { //TODO: replace with gyro reset button
+        otos.resetTracking();
     }
 }
 
