@@ -271,6 +271,9 @@ void setup() {
 }
 
 int auto_count = 0;
+float MAX_LIN_VEL = 0.46547931149358335;
+float robotRadius = 0.0495;
+float MAX_ANG_VEL = MAX_LIN_VEL / robotRadius;
 
 // ========== MAIN LOOP ==========
 void loop() {
@@ -382,9 +385,6 @@ void runBasicAutonomous() {
 float vxf = 0.0;
 float vyf = 0.0;
 float omega = 0.0;
-float MAX_LIN_VEL = 0.46547931149358335;
-float robotRadius = 0.0495;
-float MAX_ANG_VEL = MAX_LIN_VEL / robotRadius;
 
 // ========== TELEOP MODE ==========
 void runTeleop() {
