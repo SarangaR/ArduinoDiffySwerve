@@ -58,9 +58,10 @@ public:
     void setOTOS(QwiicOTOS* otosPtr) { otos = otosPtr; }
     void setPathFollower(PathFollower* pf) { pathFollower = pf; }
     
-    void drive(float vx, float vy, float omega, bool fieldOriented = true, bool headingCorrection = true);
+    void drive(float vx, float vy, float omega, bool fieldOriented = true, bool headingCorrection = false);
     ChassisSpeeds forwardKinematics(float driveRPMs[3], float anglesRad[3], float modulePositions[3][2], float wheelRadius);
     float calcYawStraight(float target, float current, float kp);
+    ChassisSpeeds getCurrentSpeeds();
 
     void stop();
     void update();

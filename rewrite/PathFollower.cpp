@@ -3,88 +3,61 @@
 PathFollower::PathFollower(QwiicOTOS* otosPtr, Drivetrain* drivetrainPtr) {
     otos = otosPtr;
     drivetrain = drivetrainPtr;
-    
-    // Initialize path following parameters
+
     path = nullptr;
     pathLength = 0;
     currentWaypointIndex = 0;
     pathActive = false;
     pathComplete = false;
-    
-    // Default control parameters
-    lookAheadDistance = 0.3;  // 30cm lookahead
-    waypointTolerance = 0.1;  // 10cm tolerance
-    headingTolerance = 0.1;   // ~5.7 degrees
-    maxSpeed = 1.0;           // 1 m/s max
-    maxAngularSpeed = 2.0;    // 2 rad/s max
-    
-    // Default PID parameters
+
+    lookAheadDistance = 0.3;
+    waypointTolerance = 0.1;
+    headingTolerance = 0.1;
+    maxSpeed = 1.0;
+    maxAngularSpeed = 2.0;
+    maxAcceleration = 0.5;
+    totalPathLength = 0.0;
+
     positionKp = 2.0;
     positionKi = 0.0;
     positionKd = 0.1;
     headingKp = 3.0;
     headingKi = 0.0;
     headingKd = 0.2;
-    
-    // Initialize PID state
-    positionIntegral = 0.0;
-    positionLastError = 0.0;
-    headingIntegral = 0.0;
-    headingLastError = 0.0;
+
+    positionIntegral = positionLastError = 0.0;
+    headingIntegral = headingLastError = 0.0;
     lastUpdateTime = 0;
-    
-    // Initialize pose
-    currentPose = Pose(0.0, 0.0, 0.0);
+
+    currentPose = Pose();
     poseValid = false;
 }
 
 bool PathFollower::init() {
     Serial.println("Initializing PathFollower...");
-    
-    // Initialize OTOS sensor
     if (!otos->begin()) {
         Serial.println("Failed to initialize OTOS sensor!");
         return false;
     }
-    
-    // Configure OTOS
     otos->setLinearUnit(kSfeOtosLinearUnitMeters);
     otos->setAngularUnit(kSfeOtosAngularUnitRadians);
-    
-    // Calibrate the sensor
     calibrateOTOS();
-    
     Serial.println("PathFollower initialized successfully!");
     return true;
 }
 
 void PathFollower::calibrateOTOS() {
     Serial.println("Calibrating OTOS sensor...");
-    Serial.println("Make sure the robot is stationary and centered on the field!");
-    
-    delay(2000); // Give time for robot to settle
-    
-    // Perform calibration
+    delay(2000);
     otos->calibrateImu();
-    
-    // Reset position to (0, 0, 0)
     resetPose(0.0, 0.0, 0.0);
-    
     Serial.println("OTOS calibration complete!");
 }
 
 void PathFollower::resetPose(float x, float y, float heading) {
-    sfe_otos_pose2d_t newPose;
-    newPose.x = x;
-    newPose.y = y;
-    newPose.h = heading;
-    
+    sfe_otos_pose2d_t newPose = {x, y, heading};
     otos->setPosition(newPose);
-    
-    currentPose.x = x;
-    currentPose.y = y;
-    currentPose.heading = heading;
-    
+    currentPose = Pose(x, y, heading);
     Serial.print("Pose reset to: (");
     Serial.print(x); Serial.print(", ");
     Serial.print(y); Serial.print(", ");
@@ -96,29 +69,29 @@ void PathFollower::setPath(Waypoint* waypoints, int length) {
     pathLength = length;
     currentWaypointIndex = 0;
     pathComplete = false;
-    
+
+    totalPathLength = 0.0;
+    for (int i = 1; i < pathLength; ++i) {
+        totalPathLength += calculateDistance(path[i - 1].x, path[i - 1].y, path[i].x, path[i].y);
+    }
+
     Serial.print("Path set with ");
     Serial.print(length);
-    Serial.println(" waypoints");
+    Serial.print(" waypoints. Total path length: ");
+    Serial.println(totalPathLength, 3);
 }
 
 void PathFollower::startPath() {
-    if (path == nullptr || pathLength == 0) {
+    if (!path || pathLength == 0) {
         Serial.println("No path defined!");
         return;
     }
-    
     pathActive = true;
     pathComplete = false;
     currentWaypointIndex = 0;
-    
-    // Reset PID state
-    positionIntegral = 0.0;
-    positionLastError = 0.0;
-    headingIntegral = 0.0;
-    headingLastError = 0.0;
+    positionIntegral = headingIntegral = 0.0;
+    positionLastError = headingLastError = 0.0;
     lastUpdateTime = millis();
-    
     Serial.println("Path following started!");
 }
 
@@ -135,7 +108,7 @@ void PathFollower::pausePath() {
 }
 
 void PathFollower::resumePath() {
-    if (path != nullptr && !pathComplete) {
+    if (path && !pathComplete) {
         pathActive = true;
         lastUpdateTime = millis();
         Serial.println("Path following resumed!");
@@ -143,25 +116,17 @@ void PathFollower::resumePath() {
 }
 
 void PathFollower::setPositionPID(float kp, float ki, float kd) {
-    positionKp = kp;
-    positionKi = ki;
-    positionKd = kd;
+    positionKp = kp; positionKi = ki; positionKd = kd;
 }
 
 void PathFollower::setHeadingPID(float kp, float ki, float kd) {
-    headingKp = kp;
-    headingKi = ki;
-    headingKd = kd;
+    headingKp = kp; headingKi = ki; headingKd = kd;
 }
 
 void PathFollower::updatePose() {
     sfe_otos_pose2d_t pose;
-    sfTkError_t status = otos->getPosition(pose);
-    
-    if (status == ksfTkErrOk) {
-        currentPose.x = pose.x;
-        currentPose.y = pose.y;
-        currentPose.heading = normalizeAngle(pose.h);
+    if (otos->getPosition(pose) == ksfTkErrOk) {
+        currentPose = Pose(pose.x, pose.y, normalizeAngle(pose.h));
         poseValid = true;
     } else {
         poseValid = false;
@@ -182,121 +147,109 @@ float PathFollower::normalizeAngle(float angle) {
 }
 
 float PathFollower::calculateAngleDifference(float target, float current) {
-    float diff = target - current;
-    return normalizeAngle(diff);
+    return normalizeAngle(target - current);
 }
 
-Waypoint PathFollower::findLookAheadPoint() {
-    if (currentWaypointIndex >= pathLength) {
-        return path[pathLength - 1]; // Return last waypoint
-    }
-    
-    // Start with current target waypoint
-    Waypoint targetPoint = path[currentWaypointIndex];
-    
-    // Look ahead to find optimal point
-    for (int i = currentWaypointIndex; i < pathLength; i++) {
-        float distanceToWaypoint = calculateDistance(
-            currentPose.x, currentPose.y, 
-            path[i].x, path[i].y
-        );
-        
-        if (distanceToWaypoint >= lookAheadDistance) {
-            targetPoint = path[i];
-            break;
-        }
-    }
-    
-    return targetPoint;
+float PathFollower::interpolateHeading(Waypoint from, Waypoint to, float t) {
+    float delta = calculateAngleDifference(to.heading, from.heading);
+    return normalizeAngle(from.heading + t * delta);
 }
 
 void PathFollower::update() {
-    if (!pathActive || pathComplete) {
-        return;
-    }
-    
-    // Update robot pose
+    if (!pathActive || pathComplete) return;
+
     updatePose();
-    
     if (!poseValid) {
         Serial.println("Invalid pose - stopping path following");
         stopPath();
         return;
     }
-    
+
     unsigned long currentTime = millis();
-    float dt = (currentTime - lastUpdateTime) / 1000.0; // Convert to seconds
-    
-    if (dt <= 0) return; // Avoid division by zero
-    
-    // Check if we've reached the current waypoint
+    float dt = (currentTime - lastUpdateTime) / 1000.0;
+    if (dt <= 0) return;
+
     if (currentWaypointIndex < pathLength) {
-        Waypoint currentTarget = path[currentWaypointIndex];
         float distanceToWaypoint = calculateDistance(
             currentPose.x, currentPose.y,
-            currentTarget.x, currentTarget.y
+            path[currentWaypointIndex].x, path[currentWaypointIndex].y
         );
-        
         if (distanceToWaypoint < waypointTolerance) {
             currentWaypointIndex++;
+            positionIntegral = headingIntegral = 0.0;
             Serial.print("Reached waypoint ");
-            Serial.print(currentWaypointIndex);
-            Serial.print(" of ");
-            Serial.println(pathLength);
-            
-            // Reset integral terms when reaching waypoint
-            positionIntegral = 0.0;
-            headingIntegral = 0.0;
+            Serial.println(currentWaypointIndex);
         }
     }
-    
-    // Check if path is complete
+
     if (currentWaypointIndex >= pathLength) {
         pathComplete = true;
         pathActive = false;
-        drivetrain->stop();
-        Serial.println("Path following complete!");
+
+        float finalHeadingError = calculateAngleDifference(path[pathLength - 1].heading, currentPose.heading);
+        if (abs(finalHeadingError) > headingTolerance) {
+            float headingCommand = headingKp * finalHeadingError;
+            headingCommand = constrain(headingCommand, -maxAngularSpeed, maxAngularSpeed);
+            drivetrain->drive(0, 0, headingCommand, true);
+        } else {
+            drivetrain->stop();
+            Serial.println("Path following complete!");
+        }
         return;
     }
-    
-    // Find lookahead point
-    Waypoint lookAheadPoint = findLookAheadPoint();
-    
-    // Calculate position error
-    float dx = lookAheadPoint.x - currentPose.x;
-    float dy = lookAheadPoint.y - currentPose.y;
+
+    Waypoint from = path[currentWaypointIndex];
+    Waypoint to = path[min(currentWaypointIndex + 1, pathLength - 1)];
+
+    float segmentLength = calculateDistance(from.x, from.y, to.x, to.y);
+    float robotProgress = calculateDistance(from.x, from.y, currentPose.x, currentPose.y);
+    float t = (segmentLength > 0.0f) ? constrain(robotProgress / segmentLength, 0.0f, 1.0f) : 0.0f;
+
+    float desiredHeading = interpolateHeading(from, to, t);
+
+    // Compute total distance traveled along path
+    float distanceAlongPath = 0.0;
+    for (int i = 0; i < currentWaypointIndex; ++i) {
+        distanceAlongPath += calculateDistance(path[i].x, path[i].y, path[i + 1].x, path[i + 1].y);
+    }
+    distanceAlongPath += robotProgress;
+
+    float accelDist = (maxSpeed * maxSpeed) / (2 * maxAcceleration);
+    float decelDist = accelDist;
+    float cruiseDist = max(0.0f, totalPathLength - (accelDist + decelDist));
+
+    float targetSpeed = 0.0;
+    if (distanceAlongPath < accelDist) {
+        targetSpeed = sqrt(2 * maxAcceleration * distanceAlongPath);
+    } else if (distanceAlongPath < (accelDist + cruiseDist)) {
+        targetSpeed = maxSpeed;
+    } else {
+        float remaining = totalPathLength - distanceAlongPath;
+        targetSpeed = sqrt(2 * maxAcceleration * remaining);
+    }
+
+    targetSpeed = constrain(targetSpeed, 0.0f, maxSpeed);
+
+    float dx = to.x - currentPose.x;
+    float dy = to.y - currentPose.y;
     float positionError = sqrt(dx * dx + dy * dy);
-    
-    // Calculate desired heading to lookahead point
-    float desiredHeading = atan2(dy, dx);
     float headingError = calculateAngleDifference(desiredHeading, currentPose.heading);
-    
-    // PID control for position
+
     positionIntegral += positionError * dt;
     float positionDerivative = (positionError - positionLastError) / dt;
-    float speedCommand = positionKp * positionError + 
-                        positionKi * positionIntegral + 
-                        positionKd * positionDerivative;
-    
-    // PID control for heading
+    float speedCommand = positionKp * positionError + positionKi * positionIntegral + positionKd * positionDerivative;
+    speedCommand = constrain(speedCommand, -targetSpeed, targetSpeed);
+
     headingIntegral += headingError * dt;
     float headingDerivative = (headingError - headingLastError) / dt;
-    float angularCommand = headingKp * headingError + 
-                          headingKi * headingIntegral + 
-                          headingKd * headingDerivative;
-    
-    // Limit speeds
-    speedCommand = constrain(speedCommand, -maxSpeed, maxSpeed);
+    float angularCommand = headingKp * headingError + headingKi * headingIntegral + headingKd * headingDerivative;
     angularCommand = constrain(angularCommand, -maxAngularSpeed, maxAngularSpeed);
-    
-    // Convert to robot frame velocities
+
     float vx = speedCommand * cos(desiredHeading);
     float vy = speedCommand * sin(desiredHeading);
-    
-    // Send commands to drivetrain (field-oriented)
+
     drivetrain->drive(vx, vy, angularCommand, true);
-    
-    // Update PID state
+
     positionLastError = positionError;
     headingLastError = headingError;
     lastUpdateTime = currentTime;
@@ -304,10 +257,7 @@ void PathFollower::update() {
 
 float PathFollower::getDistanceToTarget() {
     if (currentWaypointIndex < pathLength) {
-        return calculateDistance(
-            currentPose.x, currentPose.y,
-            path[currentWaypointIndex].x, path[currentWaypointIndex].y
-        );
+        return calculateDistance(currentPose.x, currentPose.y, path[currentWaypointIndex].x, path[currentWaypointIndex].y);
     }
     return 0.0;
 }
@@ -328,12 +278,12 @@ void PathFollower::printStatus() {
     Serial.print(currentPose.x, 3); Serial.print(", ");
     Serial.print(currentPose.y, 3); Serial.print(", ");
     Serial.print(currentPose.heading, 3); Serial.println(")");
-    
+
     Serial.print("Path Active: "); Serial.println(pathActive ? "Yes" : "No");
     Serial.print("Path Complete: "); Serial.println(pathComplete ? "Yes" : "No");
     Serial.print("Current Waypoint: "); Serial.print(currentWaypointIndex);
     Serial.print(" of "); Serial.println(pathLength);
-    
+
     if (currentWaypointIndex < pathLength) {
         Serial.print("Target: (");
         Serial.print(path[currentWaypointIndex].x, 3); Serial.print(", ");
@@ -341,6 +291,6 @@ void PathFollower::printStatus() {
         Serial.print("Distance to target: "); Serial.println(getDistanceToTarget(), 3);
         Serial.print("Heading error: "); Serial.println(getHeadingError(), 3);
     }
-    
+
     Serial.print("Pose Valid: "); Serial.println(poseValid ? "Yes" : "No");
 }
