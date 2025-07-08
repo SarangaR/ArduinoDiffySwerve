@@ -22,9 +22,9 @@ Motor* leftTop;
 Motor* leftBottom;
 
 // NOTE: Set these numbers to OPPOSITE of the displayed value (- is +, + is -)
-float centerOffset = 0.0;
-float leftOffset = 0.0;
-float rightOffset = 0.0;
+float centerOffset = -90.44;
+float leftOffset = -123.5;
+float rightOffset = -170.31;
 
 // NoU_Servo arm;
 NoU_Motor intake(8);
@@ -217,7 +217,7 @@ void setup() {
     right = new Module(rightTop, rightBottom, rightAzimuth, (rightOffset) * DEG_TO_RAD);
     left = new Module(leftTop, leftBottom, leftAzimuth, (leftOffset) * DEG_TO_RAD);
     
-    // Create drivetrain
+    // Create drivetrain 
     drivetrain = new Drivetrain(center, right, left);
     
     // Create path follower

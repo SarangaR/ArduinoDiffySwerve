@@ -23,6 +23,14 @@ private:
     
     float lastRPM = 0.0;
 
+    const float stallVelocityThreshold = 2.5;
+    const unsigned long stallHoldTime = 200;
+    const float reducedVelocity = 0.4;
+
+    bool isStalled = false;
+    unsigned long stallStartTime = 0;
+
+
 public:
     Motor(int port, int encA, int encB, bool invertMotor = false);
     ~Motor();

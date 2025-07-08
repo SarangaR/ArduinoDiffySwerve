@@ -116,6 +116,19 @@ void Motor::update() {
 
     power = applySlewRateLimit(power, 50.0, dt);
 
+    if (fabs(power) > 0.1 && fabs(currentVel) < stallVelocityThreshold) {
+        if (!isStalled) {
+            stallStartTime = millis();
+            isStalled = true;
+        }
+        else if (millis() - stallStartTime > stallHoldTime) {
+            power = reducedVelocity * (power > 0 ? 1 : -1);
+        }
+    }
+    else {
+        isStalled = false;
+    }
+
     alfredoMotor->set(power);
 
     lastError = error;
